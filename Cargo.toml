@@ -1,0 +1,10 @@
+[package]
+name = "prem-tools"
+version = "0.1.0"
+authors = ["Joonas Javanainen <joonas.javanainen@gmail.com>"]
+
+[dependencies]
+byteorder = "1.1"
+clap = "2.27"
+failure = "0.1"
+failure_derive = "0.1"
