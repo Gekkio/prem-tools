@@ -6,40 +6,47 @@ extern crate failure_derive;
 use failure::Error;
 use std::io::Read;
 
-use decoder::{DecodedBlock, Decoder};
+use decoder::Decoder;
 
 mod decoder;
 
 #[derive(Fail, Debug)]
-pub enum PremError {
+pub enum UncompressError {
     #[fail(display = "Invalid address (len {}, offset {}, start {})", len, offset, start)]
     InvalidAddress { len: usize, offset: i16, start: u16 },
     #[fail(display = "Output overflowed maximum size of 65536 bytes")]
     OutputSizeOverflow,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct BlockRef {
     offset: i16,
     length: u16,
 }
 
-pub fn uncompress<R: Read>(input: R) -> Result<Vec<u8>, Error> {
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Block {
+    Literal(u8),
+    Ref(BlockRef),
+    EndOfFile,
+}
+
+pub fn decompress<R: Read>(input: R) -> Result<Vec<u8>, Error> {
     let mut decoder = Decoder::new(input)?;
 
     let mut output = vec![];
 
     loop {
         match decoder.decode_block()? {
-            DecodedBlock::EndOfFile => break,
-            DecodedBlock::Literal(value) => output.push(value),
-            DecodedBlock::Ref(BlockRef { offset, length }) => {
+            Block::EndOfFile => break,
+            Block::Literal(value) => output.push(value),
+            Block::Ref(BlockRef { offset, length }) => {
                 let start = (output.len() as i16 + offset as i16) as u16 as usize;
                 let end = start + length as usize;
 
                 if start >= output.len() {
                     return Err(
-                        PremError::InvalidAddress {
+                        UncompressError::InvalidAddress {
                             len: output.len(),
                             offset,
                             start: start as u16,
@@ -55,7 +62,7 @@ pub fn uncompress<R: Read>(input: R) -> Result<Vec<u8>, Error> {
         }
 
         if output.len() > 0x10000 {
-            return Err(PremError::OutputSizeOverflow.into());
+            return Err(UncompressError::OutputSizeOverflow.into());
         }
     }
 
@@ -63,7 +70,7 @@ pub fn uncompress<R: Read>(input: R) -> Result<Vec<u8>, Error> {
 }
 
 #[test]
-fn test_literal_only() {
+fn test_decompress_literal_only() {
     let mut literals = vec![];
     let mut data: Vec<u8> = vec![];
     data.push(0b1111_1111); // 8 literal values
@@ -73,5 +80,7 @@ fn test_literal_only() {
         literals.push(value);
     }
     data.push(0xff); // EOF byte
-    assert_eq!(uncompress(data.as_slice()).unwrap(), literals);
+    data.push(0xff);
+    data.push(0xff);
+    assert_eq!(decompress(data.as_slice()).unwrap(), literals);
 }

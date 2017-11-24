@@ -2,14 +2,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use failure::Error;
 use std::io::Read;
 
-use BlockRef;
-
-#[derive(Copy, Clone, Debug)]
-pub enum DecodedBlock {
-    Literal(u8),
-    Ref(BlockRef),
-    EndOfFile,
-}
+use {Block, BlockRef};
 
 #[derive(Clone, Debug)]
 pub struct Decoder<R: Read> {
@@ -25,24 +18,24 @@ impl<R: Read> Decoder<R> {
             cmd_block: cmd_block,
         })
     }
-    pub fn decode_block(&mut self) -> Result<DecodedBlock, Error> {
+    pub fn decode_block(&mut self) -> Result<Block, Error> {
         if self.next_cmd_bit()? {
             let value = self.input.read_u8()?;
-            Ok(DecodedBlock::Literal(value))
+            Ok(Block::Literal(value))
         } else {
             let is_big_ref = self.next_cmd_bit()?;
             let offset_l = self.input.read_u8()?;
 
             if is_big_ref {
                 let block_ref = self.decode_big_ref(offset_l)?;
-                Ok(DecodedBlock::Ref(block_ref))
+                Ok(Block::Ref(block_ref))
             } else if self.next_cmd_bit()? {
                 let block_ref = self.decode_small_ref(offset_l)?;
-                Ok(DecodedBlock::Ref(block_ref))
+                Ok(Block::Ref(block_ref))
             } else if offset_l == 0xff {
-                Ok(DecodedBlock::EndOfFile)
+                Ok(Block::EndOfFile)
             } else {
-                Ok(DecodedBlock::Ref(BlockRef {
+                Ok(Block::Ref(BlockRef {
                     offset: (0xff00 | u16::from(offset_l)) as i16,
                     length: 2,
                 }))
@@ -53,10 +46,11 @@ impl<R: Read> Decoder<R> {
     fn next_cmd_bits(&mut self, bits: usize) -> Result<u8, Error> {
         let mut result = 0;
         for _ in 0..bits {
+            // Order of shifting first and then fetching more is important!
+            let bit = self.cmd_block.shift_bit();
             if self.cmd_block.is_empty() {
                 self.cmd_block = CommandBlock::read_from(&mut self.input)?;
             }
-            let bit = self.cmd_block.shift_bit();
             result = (result << 1) | bit;
         }
         Ok(result)
