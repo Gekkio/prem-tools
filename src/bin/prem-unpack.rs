@@ -13,11 +13,11 @@ fn run(matches: &ArgMatches) -> Result<(), Error> {
     let result = match matches.value_of("INPUT") {
         None | Some("-") => {
             let input = io::stdin();
-            prem_tools::decode(input)?
+            prem_tools::uncompress(input)?
         }
         Some(path) => {
             let input = File::open(path)?;
-            prem_tools::decode(input)?
+            prem_tools::uncompress(input)?
         }
     };
 
