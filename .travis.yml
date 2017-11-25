@@ -1,0 +1,6 @@
+sudo: false
+dist: trusty
+language: rust
+rust:
+  - stable
+cache: cargo
