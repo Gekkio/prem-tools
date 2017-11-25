@@ -80,7 +80,8 @@ fn test_decompress_literal_only() {
         literals.push(value);
     }
     data.push(0xff); // EOF byte
-    data.push(0xff);
+
+    data.push(0xff); // Dummy command block
     data.push(0xff);
     assert_eq!(decompress(data.as_slice()).unwrap(), literals);
 }
