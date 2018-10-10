@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Joonas Javanainen <joonas.javanainen@gmail.com>"]
 
 [dependencies]
-byteorder = "1.1"
-clap = "2.27"
+byteorder = "1.2"
+clap = "2.32"
 failure = "0.1"
 failure_derive = "0.1"
